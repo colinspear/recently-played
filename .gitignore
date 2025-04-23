@@ -1,1 +1,24 @@
-.vscode
+# virtual environments
+.venv/
+__pycache__/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# editor configs
+.vscode/
+.idea/
+
+# local cache and logs
+*.log
+/tmp/
+*.egg-info/
+
+# build artifacts
+*.zip
+build/
+lambdas/process_to_csv/lambda_package.zip
+
+# local data
+data/
