@@ -26,6 +26,8 @@ def load_data() -> pd.DataFrame:
     return pd.DataFrame()
 
 df = load_data()
+df["played_at_local"] = pd.to_datetime(df["played_at_local"], errors="coerce", utc=True)
+
 if df.empty:
     st.stop()
 
