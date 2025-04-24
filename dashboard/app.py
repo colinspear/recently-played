@@ -35,9 +35,14 @@ df["weekday"] = pd.to_datetime(df["date"]).dt.day_name()
 if df.empty:
     st.stop()
 
-# --- Timestamp ---
-last_ts = df["played_at_local"].max()
-st.markdown(f"**Last updated:** {last_ts.strftime('%Y-%m-%d %H:%M UTC')}")
+# --- Dashboard Last Refresh Timestamp ---
+try:
+    with open(".streamlit/last_refresh.txt", "r") as f:
+        last_refresh = f.read().strip()
+except Exception:
+    last_refresh = "Unknown"
+
+st.markdown(f"**Dashboard last refreshed:** {last_refresh}")
 
 # --- Summary stats ---
 st.header("Summary Stats (Last 30 Days)")
