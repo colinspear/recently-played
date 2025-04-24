@@ -27,6 +27,10 @@ def load_data() -> pd.DataFrame:
 
 df = load_data()
 df["played_at_local"] = pd.to_datetime(df["played_at_local"], errors="coerce", utc=True)
+df = df.dropna(subset=["played_at_local"])
+
+df["date"] = df["played_at_local"].dt.date
+df["weekday"] = pd.to_datetime(df["date"]).dt.day_name()
 
 if df.empty:
     st.stop()
@@ -37,9 +41,12 @@ st.markdown(f"**Last updated:** {last_ts.strftime('%Y-%m-%d %H:%M UTC')}")
 
 # --- Summary stats ---
 st.header("Summary Stats")
-total_time = df["duration_ms"].sum() / 60000  # minutes
-total_tracks = len(df)
-unique_artists = df["artist_name"].nunique()
+
+recent_df = df[df["played_at_local"] >= pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=30)]
+
+total_time = recent_df["duration_ms"].sum() / 60000
+total_tracks = len(recent_df)
+unique_artists = recent_df["artist_name"].nunique()
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Listening Time (min)", f"{int(total_time):,}")
@@ -128,6 +135,6 @@ st.altair_chart(hour_chart, use_container_width=True)
 
 # --- Genre Breakdown ---
 st.subheader("Genre Distribution")
-genres = df["genre"].value_counts().reset_index()
+genres = df[df["genre"].str.lower() != "unknown"]["genre"].value_counts().reset_index()
 genres.columns = ["Genre", "Count"]
 st.bar_chart(genres.head(15).set_index("Genre"))
