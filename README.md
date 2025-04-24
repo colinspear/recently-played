@@ -2,21 +2,32 @@
 
 This project is a serverless pipeline and dashboard that tracks personal Spotify listening history. It includes:
 
-- AWS Lambda functions for data ingestion and transformation
-- S3 for storage and state management
+- AWS Lambda functions for ingestion, enrichment, and transformation
+- S3 for storage, caching, and public delivery
 - A Streamlit dashboard hosted on Streamlit Cloud
+- Daily automation with CloudWatch Events and GitHub Actions
 - Optional local development workflows
 
 ## Architecture Overview
 
-1. **Data Ingestion (Legacy Lambda)**  
-   The `fetch_recent_plays_legacy` Lambda pulls recent listening data from the Spotify API and stores it in a private S3 bucket as raw `.json` files. This function runs on a scheduled trigger and is preserved here as a legacy component.
+1. **Data Ingestion (Lambda)**  
+   The `fetch_recent_plays` Lambda pulls recent listening data from the Spotify API and stores it in a private S3 bucket as raw `.json`. This function runs daily via CloudWatch.
 
 2. **Data Processing (Lambda)**  
-   The `spotify-recently-played-process-to-csv` Lambda reads new `.json` files from S3, extracts structured data, enriches it with genre metadata, and writes the processed `.csv` output to a public S3 bucket. Caching for processed files and genres is handled via versioned S3 objects.
+   The `spotify-recently-played-process-to-csv` Lambda reads new `.json` from S3, extracts structured listening records, enriches them with artist genre metadata, and writes a unified `.csv` to a public S3 bucket.  
+   - deduplication based on `played_at`  
+   - genre caching and key tracking stored in versioned S3  
+   - deployed as a zip built with Docker using AWS base images
 
 3. **Dashboard (Streamlit)**  
-   The Streamlit app loads the latest processed data directly from the public S3 bucket and displays listening time trends, top artists, genre insights, and more. The app auto-refreshes based on the pipeline schedule.
+   The dashboard reads directly from the public S3 CSV. It displays:
+   - daily listening time with weekday benchmarks
+   - top artists and tracks (last 30 days)
+   - hourly listening patterns
+   - genre distribution with mock-enriched labels
+   - dashboard-level refresh timestamp synced to GitHub Actions trigger
+
+   Hosted on Streamlit Cloud and updated daily via a no-op commit using GitHub Actions.
 
 ## Running Locally
 
@@ -28,7 +39,7 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-If a local CSV exists at data/processed/listening_data.csv, it will be used. Otherwise, set the environment variable:
+If a local CSV exists at data/processed/listening_data.csv, it will be used. Otherwise, set:
 
 ```bash
 export LISTENING_CSV_URL=https://<your-bucket>.s3.amazonaws.com/processed/listening_data.csv
@@ -36,9 +47,6 @@ export LISTENING_CSV_URL=https://<your-bucket>.s3.amazonaws.com/processed/listen
 
 ## Deployment
 
-- Lambda Packaging: see build.sh in lambdas/process_to_csv/
-- Streamlit Cloud: configured via .streamlit/secrets.toml and environment variables
-
-## Legacy Components
-
-The fetch_recent_plays_legacy function was the original ingestion Lambda used to retrieve recent Spotify listening history and push it to S3. While it is no longer actively developed, it remains a core upstream component of the pipeline and is preserved here for completeness.
+- Lambda packaging: see build_docker.sh in lambdas/process_to_csv/
+- Streamlit Cloud: set LISTENING_CSV_URL as an env var
+- Daily redeploy: see .github/workflows/daily-refresh.yml
