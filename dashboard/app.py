@@ -40,7 +40,7 @@ last_ts = df["played_at_local"].max()
 st.markdown(f"**Last updated:** {last_ts.strftime('%Y-%m-%d %H:%M UTC')}")
 
 # --- Summary stats ---
-st.header("Summary Stats")
+st.header("Summary Stats (Last 30 Days)")
 
 recent_df = df[df["played_at_local"] >= pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=30)]
 
