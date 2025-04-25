@@ -1,6 +1,6 @@
 # Recently Played: Personal Spotify Listening Dashboard
 
-This project is a serverless pipeline and dashboard that tracks personal Spotify listening history. It includes:
+This project is a serverless pipeline and dashboard that tracks personal Spotify listening history. The live dashboard can be found [here](https://recently-played-dashboard.streamlit.app). It includes:
 
 - AWS Lambda functions for ingestion, enrichment, and transformation
 - S3 for storage, caching, and public delivery
