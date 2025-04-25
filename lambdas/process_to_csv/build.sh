@@ -20,7 +20,7 @@ docker run --rm \
   -c "
     yum install -y zip > /dev/null &&
     rm -rf build && mkdir -p build/python/shared &&
-    pip install --no-cache-dir -r requirements.txt -t build/python &&
+    pip install --no-cache-dir -q -r requirements.txt -t build/python &&
     cp main.py build/python/ &&
     cp /app/shared/*.py build/python/shared/ &&
     cd build/python && zip -r9 ../../lambda_package.zip . && cd ../..

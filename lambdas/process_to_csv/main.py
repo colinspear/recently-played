@@ -2,13 +2,15 @@ import os
 import json
 import pandas as pd
 import boto3
+from io import StringIO
 
 from shared.s3_utils import load_seen_keys, filter_new_s3_keys, update_seen_keys
 from shared.genre import get_spotify_token, fetch_artist_genres
 from shared.genre_cache import load_genre_cache, save_genre_cache
 
-SOURCE_BUCKET = os.getenv("SOURCE_BUCKET", "spotify-data-1204198333")
-DEST_BUCKET = os.getenv("DEST_BUCKET", "spotify-recently-played-dashboard-prod")
+SOURCE_BUCKET = os.environ["SOURCE_BUCKET"]
+DEST_BUCKET = os.environ["DEST_BUCKET"]
+DEST_KEY = "processed/listening_data.csv"
 
 s3 = boto3.client("s3")
 
@@ -65,20 +67,34 @@ def process_data(df):
 
     df["genre"] = df["artist_uri"].map(genre_cache)
     return df
-
-
-def save_to_local_csv(df):
-    os.makedirs(os.path.dirname(DEST_PATH), exist_ok=True)
-    df.to_csv(DEST_PATH, index=False)
-    print(f"Saved {len(df)} rows to {DEST_PATH}")
-
-def save_to_s3(df, bucket, key="processed/listening_data.csv"):
-    tmp_path = "/tmp/listening_data.csv"
-    df.to_csv(tmp_path, index=False)
     
-    s3 = boto3.client("s3")
-    s3.upload_file(tmp_path, bucket, key)
+
+def append_to_existing(df_new):
+    try:
+        obj = s3.get_object(Bucket=DEST_BUCKET, Key=DEST_KEY)
+        df_existing = pd.read_csv(obj["Body"], parse_dates=["played_at_local"])
+        df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+    except s3.exceptions.NoSuchKey:
+        df_combined = df_new
+
+    # deduplicate by played_at
+    df_combined = (
+        df_combined
+        .drop_duplicates(subset="played_at")
+        .sort_values("played_at_local")
+        .reset_index(drop=True)
+    )
+
+    return df_combined
+
+
+def save_to_s3(df, bucket=DEST_BUCKET, key=DEST_KEY):
+    buffer = StringIO()
+    df.to_csv(buffer, index=False)
+    buffer.seek(0)
+    s3.put_object(Bucket=bucket, Key=key, Body=buffer.getvalue())
     print(f"[upload] wrote {len(df)} rows to s3://{bucket}/{key}")
+
 
 def handler(event=None, context=None):
     df = read_raw_json()
@@ -86,9 +102,9 @@ def handler(event=None, context=None):
         print("No new data to process.")
         return {"rows": 0, "status": "noop"}
 
-    df = process_data(df)
-    # save_to_local_csv(df)
-    save_to_s3(df, DEST_BUCKET)
+    new_df = process_data(df)
+    df = append_to_existing(new_df)
+    save_to_s3(df)
     return {"rows": len(df), "status": "ok"}
 
 

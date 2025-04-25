@@ -2,18 +2,20 @@ name: Daily Streamlit Refresh
 
 on:
   schedule:
-    - cron: '15 7 * * *'  # 7:15am UTC daily
+    - cron: '15 7 * * *'  # daily at 7:15am UTC
   workflow_dispatch:
 
 jobs:
   refresh:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Update timestamp
         run: |
+          mkdir -p .streamlit
           echo "Last refreshed: $(date -u)" > .streamlit/last_refresh.txt
 
       - name: Commit and push
@@ -21,5 +23,5 @@ jobs:
           git config user.name "streamlit-bot"
           git config user.email "bot@streamlit"
           git add .streamlit/last_refresh.txt
-          git commit -m "Daily refresh trigger" || echo "No changes to commit"
+          git commit -m "Automated: daily Streamlit refresh" || echo "No changes to commit"
           git push
